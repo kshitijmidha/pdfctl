@@ -17,6 +17,11 @@ class ArchitectureTest {
     }
 
     @Test
+    void cliDoesNotDependOnInfrastructure() throws IOException {
+        assertNoInfrastructureImports(Path.of("src/main/java/com/pdfctl/cli"));
+    }
+
+    @Test
     void applicationDoesNotImportPdfBox() throws IOException {
         assertNoPdfBoxImports(Path.of("src/main/java/com/pdfctl/application"));
         assertNoPdfBoxImports(Path.of("src/main/java/com/pdfctl/infrastructure/io"));
@@ -46,6 +51,23 @@ class ArchitectureTest {
                                     .doesNotContain("PDDocument")
                                     .doesNotContain("Loader")
                                     .doesNotContain("PDFMergerUtility");
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+        }
+    }
+
+    private static void assertNoInfrastructureImports(Path dir) throws IOException {
+        if (!Files.exists(dir)) return;
+        try (Stream<Path> walk = Files.walk(dir)) {
+            walk.filter(p -> p.toString().endsWith(".java"))
+                    .forEach(p -> {
+                        try {
+                            String content = Files.readString(p);
+                            assertThat(content)
+                                    .withFailMessage("Infrastructure import leaked in CLI %s", p)
+                                    .doesNotContain("com.pdfctl.infrastructure");
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }

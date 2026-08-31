@@ -17,7 +17,7 @@ class PdfCtlTest {
         int exit;
 
         void run(String... args) {
-            CommandLine cmd = new CommandLine(new PdfCtl());
+            CommandLine cmd = com.pdfctl.AppFactory.createCommandLine();
             cmd.setOut(new PrintWriter(out, true, StandardCharsets.UTF_8));
             cmd.setErr(new PrintWriter(err, true, StandardCharsets.UTF_8));
             exit = cmd.execute(args);

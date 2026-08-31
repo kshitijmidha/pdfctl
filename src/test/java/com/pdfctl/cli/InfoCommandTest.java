@@ -21,18 +21,9 @@ class InfoCommandTest {
         final ByteArrayOutputStream err = new ByteArrayOutputStream();
         int exit;
         void run(String... args) {
-            CommandLine cmd = new CommandLine(new PdfCtl());
+            CommandLine cmd = com.pdfctl.AppFactory.createCommandLine();
             cmd.setOut(new PrintWriter(out, true, StandardCharsets.UTF_8));
             cmd.setErr(new PrintWriter(err, true, StandardCharsets.UTF_8));
-            cmd.setExecutionExceptionHandler((ex, commandLine, parseResult) -> {
-                if (ex instanceof com.pdfctl.application.error.PdfCtlError e) {
-                    commandLine.getErr().println("pdfctl: error: " + e.getMessage());
-                    return e.code();
-                }
-                commandLine.getErr().println("pdfctl: unexpected error: " + ex.getMessage());
-                ex.printStackTrace(commandLine.getErr());
-                return 3;
-            });
             exit = cmd.execute(args);
         }
         String outStr() { return out.toString(StandardCharsets.UTF_8); }

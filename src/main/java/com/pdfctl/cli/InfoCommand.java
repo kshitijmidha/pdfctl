@@ -2,7 +2,6 @@ package com.pdfctl.cli;
 
 import com.pdfctl.application.dto.PdfDocumentInfo;
 import com.pdfctl.application.usecase.InfoUseCase;
-import com.pdfctl.infrastructure.pdfbox.PdfBoxServiceImpl;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
@@ -27,25 +26,16 @@ public class InfoCommand implements Callable<Integer> {
     @Spec
     CommandSpec spec;
 
-    // For testability: allow injection
-    private final InfoUseCase injectedUseCase;
+    private final InfoUseCase useCase;
 
-    public InfoCommand() {
-        this.injectedUseCase = null;
-    }
-
-    // Test constructor
-    InfoCommand(InfoUseCase useCase) {
-        this.injectedUseCase = useCase;
+    public InfoCommand(InfoUseCase useCase) {
+        this.useCase = useCase;
     }
 
     @Override
     public Integer call() {
-        InfoUseCase useCase = injectedUseCase != null ? injectedUseCase : new InfoUseCase(new PdfBoxServiceImpl());
         PdfDocumentInfo info = useCase.execute(input, password);
-
         var out = spec != null ? spec.commandLine().getOut() : new java.io.PrintWriter(System.out, true);
-
         if (json) {
             out.println(JsonRenderer.toJson(info));
         } else {
@@ -56,7 +46,6 @@ public class InfoCommand implements Callable<Integer> {
     }
 
     static void renderHuman(PdfDocumentInfo info, java.io.PrintWriter out) {
-        // Keep output deterministic and simple — no table deps
         out.println("File:      " + info.fileName());
         out.println("Size:      " + info.fileSize() + " bytes");
         out.println("Version:   " + info.pdfVersion());
