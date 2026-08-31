@@ -18,7 +18,7 @@ application {
 }
 
 dependencies {
-    implementation("org.apache.pdfbox:pdfbox:3.0.3")
+    implementation("org.apache.pdfbox:pdfbox:3.0.8")
     implementation("info.picocli:picocli:4.7.6")
     testImplementation(platform("org.junit:junit-bom:5.10.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")

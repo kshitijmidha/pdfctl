@@ -12,7 +12,8 @@ import picocli.CommandLine.Spec;
         version = "pdfctl 0.1.0",
         descriptionHeading = "%nDescription:%n",
         optionListHeading = "%nOptions:%n",
-        commandListHeading = "%nCommands:%n"
+        commandListHeading = "%nCommands:%n",
+        subcommands = {InfoCommand.class}
 )
 public class PdfCtl implements Runnable {
 
