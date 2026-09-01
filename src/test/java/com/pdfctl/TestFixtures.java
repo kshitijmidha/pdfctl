@@ -8,6 +8,9 @@ import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.interactive.action.PDActionURI;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDBorderStyleDictionary;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -68,5 +71,62 @@ public final class TestFixtures {
 
     public static void createPdfWithSpecialMetadata(Path path, String title) throws IOException {
         createPdfWithMetadata(path, 1, title, null, null, null, null, null);
+    }
+
+    public static void createPdfWithLinkAnnotation(Path path) throws IOException {
+        try (PDDocument doc = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.A4);
+            doc.addPage(page);
+            PDAnnotationLink link = new PDAnnotationLink();
+            link.setRectangle(new PDRectangle(50, 700, 100, 20));
+            PDBorderStyleDictionary border = new PDBorderStyleDictionary();
+            border.setWidth(1);
+            link.setBorderStyle(border);
+            PDActionURI action = new PDActionURI();
+            action.setURI("https://example.com");
+            link.setAction(action);
+            page.getAnnotations().add(link);
+            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                cs.beginText();
+                cs.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+                cs.newLineAtOffset(50, 700);
+                cs.showText("Link page");
+                cs.endText();
+            }
+            doc.save(path.toFile());
+        }
+    }
+
+    public static void createPdfWithDifferentSizes(Path path) throws IOException {
+        try (PDDocument doc = new PDDocument()) {
+            PDPage p1 = new PDPage(PDRectangle.LETTER);
+            doc.addPage(p1);
+            try (PDPageContentStream cs = new PDPageContentStream(doc, p1)) {
+                cs.beginText();
+                cs.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+                cs.newLineAtOffset(50, 700);
+                cs.showText("Letter");
+                cs.endText();
+            }
+            PDPage p2 = new PDPage(PDRectangle.A3);
+            doc.addPage(p2);
+            try (PDPageContentStream cs = new PDPageContentStream(doc, p2)) {
+                cs.beginText();
+                cs.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+                cs.newLineAtOffset(50, 700);
+                cs.showText("A3");
+                cs.endText();
+            }
+            doc.save(path.toFile());
+        }
+    }
+
+    public static void createBlankPdf(Path path, int pageCount) throws IOException {
+        try (PDDocument doc = new PDDocument()) {
+            for (int i = 0; i < pageCount; i++) {
+                doc.addPage(new PDPage(PDRectangle.A4));
+            }
+            doc.save(path.toFile());
+        }
     }
 }

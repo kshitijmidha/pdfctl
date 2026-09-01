@@ -60,15 +60,25 @@ class SplitCommandTest {
     }
 
     @Test
-    void splitSelectedToDir(@TempDir Path tmp) throws IOException {
+    void splitSelectedToDirRejected(@TempDir Path tmp) throws IOException {
         Path in = tmp.resolve("in.pdf"); TestFixtures.createSimplePdf(in, 5);
         Path outDir = tmp.resolve("outDir");
         Files.createDirectories(outDir);
         Capture c = new Capture();
         c.run("split", in.toString(), "--pages", "1,3", "-o", outDir.toString());
+        assertThat(c.exit).isEqualTo(1);
+        assertThat(c.errStr()).contains("expected a file");
+    }
+
+    @Test
+    void splitSelectedToFileSucceeds(@TempDir Path tmp) throws IOException {
+        Path in = tmp.resolve("in.pdf"); TestFixtures.createSimplePdf(in, 5);
+        Path outFile = tmp.resolve("selected.pdf");
+        Capture c = new Capture();
+        c.run("split", in.toString(), "--pages", "1,3", "-o", outFile.toString());
         assertThat(c.exit).isEqualTo(0);
-        // Should create split.pdf inside dir
-        assertThat(Files.exists(outDir.resolve("split.pdf"))).isTrue();
+        assertThat(Files.exists(outFile)).isTrue();
+        try (PDDocument d = Loader.loadPDF(outFile.toFile())) { assertThat(d.getNumberOfPages()).isEqualTo(2); }
     }
 
     @Test

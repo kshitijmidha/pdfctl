@@ -13,20 +13,39 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.apache.pdfbox.text.PDFTextStripper;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 public class PdfBoxServiceImpl implements PdfBoxService {
 
+    @FunctionalInterface
+    private interface DocumentAction<T> {
+        T apply(PDDocument doc) throws IOException;
+    }
+
+    private <T> T withDocument(Path input, String password, String errorPrefix, DocumentAction<T> action) {
+        File file = input.toFile();
+        try (PDDocument doc = loadDocument(file, password)) {
+            return action.apply(doc);
+        } catch (InvalidPasswordException e) {
+            throw mapInvalidPassword(password);
+        } catch (IOException e) {
+            EncryptedPdfException enc = tryMapEncrypted(e, password);
+            if (enc != null) throw enc;
+            throw new CorruptPdfException(errorPrefix + e.getMessage(), e);
+        }
+    }
+
     @Override
     public PdfDocumentInfo inspect(Path input, String password) {
         if (input == null) {
             throw new IoException("input must not be null");
         }
-        File file = input.toFile();
         long fileSize;
         try {
             fileSize = Files.size(input);
@@ -35,7 +54,7 @@ public class PdfBoxServiceImpl implements PdfBoxService {
         }
         String fileName = input.getFileName() != null ? input.getFileName().toString() : input.toString();
 
-        try (PDDocument doc = loadDocument(file, password)) {
+        return withDocument(input, password, "failed to read PDF: ", doc -> {
             float version = doc.getVersion();
             String pdfVersion = String.valueOf(version);
             if (version == 0) {
@@ -61,13 +80,7 @@ public class PdfBoxServiceImpl implements PdfBoxService {
             keywords = emptyToNull(keywords);
             return new PdfDocumentInfo(fileName, fileSize, pdfVersion, pageCount, encrypted,
                     title, author, creator, producer, subject, keywords);
-        } catch (InvalidPasswordException e) {
-            throw mapInvalidPassword(password);
-        } catch (IOException e) {
-            EncryptedPdfException enc = tryMapEncrypted(e, password);
-            if (enc != null) throw enc;
-            throw new CorruptPdfException("failed to read PDF: " + e.getMessage(), e);
-        }
+        });
     }
 
     @Override
@@ -79,6 +92,9 @@ public class PdfBoxServiceImpl implements PdfBoxService {
         // Limitations (documented): outlines/bookmarks, named destinations, AcroForms are not preserved
         // in this mode — PDFBox would require PDFMergerUtility with outline handling for that. We keep
         // standard document metadata from the first input (see copyMetadata).
+        // Memory: dest accumulates all pages in heap; for MVP (e.g., 2x50 pages, <5MB) it's fine.
+        // For very large merges (e.g., 20x 50MB) this would OOM — if needed, switch to PDFMergerUtility
+        // with IOUtils.createTempFileOnlyStreamCache() to spill to disk. Deferred for now.
         try (PDDocument dest = new PDDocument()) {
             boolean first = true;
             for (Path p : inputs) {
@@ -111,8 +127,7 @@ public class PdfBoxServiceImpl implements PdfBoxService {
 
     @Override
     public void splitAll(Path input, Path outputDir, String password) {
-        File file = input.toFile();
-        try (PDDocument doc = loadDocument(file, password)) {
+        withDocument(input, password, "failed to split PDF: ", doc -> {
             int n = doc.getNumberOfPages();
             for (int i = 0; i < n; i++) {
                 try (PDDocument single = new PDDocument()) {
@@ -121,15 +136,12 @@ public class PdfBoxServiceImpl implements PdfBoxService {
                     copyMetadata(doc, single);
                     Path outFile = outputDir.resolve(String.format("page-%03d.pdf", i + 1));
                     single.save(outFile.toFile());
+                } catch (IOException e) {
+                    throw new CorruptPdfException("failed to split PDF: " + e.getMessage(), e);
                 }
             }
-        } catch (InvalidPasswordException e) {
-            throw mapInvalidPassword(password);
-        } catch (IOException e) {
-            EncryptedPdfException enc = tryMapEncrypted(e, password);
-            if (enc != null) throw enc;
-            throw new CorruptPdfException("failed to split PDF: " + e.getMessage(), e);
-        }
+            return null;
+        });
     }
 
     @Override
@@ -137,8 +149,7 @@ public class PdfBoxServiceImpl implements PdfBoxService {
         if (pagesSpec == null || pagesSpec.trim().isEmpty()) {
             throw new BadInputException("no pages specified for split");
         }
-        File file = input.toFile();
-        try (PDDocument source = loadDocument(file, password)) {
+        withDocument(input, password, "failed to split PDF: ", source -> {
             int pageCount = source.getNumberOfPages();
             List<Integer> zeroBasedPages = PageRangeParser.parse(pagesSpec, pageCount);
             try (PDDocument dest = new PDDocument()) {
@@ -148,14 +159,13 @@ public class PdfBoxServiceImpl implements PdfBoxService {
                     dest.importPage(page);
                 }
                 dest.save(outputFile.toFile());
+            } catch (IOException e) {
+                EncryptedPdfException enc = tryMapEncrypted(e, password);
+                if (enc != null) throw enc;
+                throw new CorruptPdfException("failed to split PDF: " + e.getMessage(), e);
             }
-        } catch (InvalidPasswordException e) {
-            throw mapInvalidPassword(password);
-        } catch (IOException e) {
-            EncryptedPdfException enc = tryMapEncrypted(e, password);
-            if (enc != null) throw enc;
-            throw new CorruptPdfException("failed to split PDF: " + e.getMessage(), e);
-        }
+            return null;
+        });
     }
 
     @Override
@@ -163,8 +173,7 @@ public class PdfBoxServiceImpl implements PdfBoxService {
         if (pagesSpec == null || pagesSpec.trim().isEmpty()) {
             throw new BadInputException("no pages specified for delete");
         }
-        File file = input.toFile();
-        try (PDDocument source = loadDocument(file, password)) {
+        withDocument(input, password, "failed to delete pages: ", source -> {
             int pageCount = source.getNumberOfPages();
             List<Integer> zeroBasedPagesToDelete = PageRangeParser.parse(pagesSpec, pageCount);
             if (zeroBasedPagesToDelete.size() >= pageCount) {
@@ -180,14 +189,13 @@ public class PdfBoxServiceImpl implements PdfBoxService {
                     }
                 }
                 dest.save(output.toFile());
+            } catch (IOException e) {
+                EncryptedPdfException enc = tryMapEncrypted(e, password);
+                if (enc != null) throw enc;
+                throw new CorruptPdfException("failed to delete pages: " + e.getMessage(), e);
             }
-        } catch (InvalidPasswordException e) {
-            throw mapInvalidPassword(password);
-        } catch (IOException e) {
-            EncryptedPdfException enc = tryMapEncrypted(e, password);
-            if (enc != null) throw enc;
-            throw new CorruptPdfException("failed to delete pages: " + e.getMessage(), e);
-        }
+            return null;
+        });
     }
 
     @Override
@@ -195,9 +203,12 @@ public class PdfBoxServiceImpl implements PdfBoxService {
         if (angle != 90 && angle != 180 && angle != 270) {
             throw new BadInputException("angle must be 90, 180, or 270, got " + angle);
         }
-        File file = input.toFile();
-        try (PDDocument doc = loadDocument(file, password)) {
+        withDocument(input, password, "failed to rotate PDF: ", doc -> {
             int pageCount = doc.getNumberOfPages();
+            // If the document was encrypted and we loaded with correct password, remove security before saving
+            if (doc.isEncrypted()) {
+                doc.setAllSecurityToBeRemoved(true);
+            }
             boolean allPages = pagesSpec == null || pagesSpec.trim().isEmpty();
             boolean[] target = new boolean[pageCount];
             if (allPages) {
@@ -213,20 +224,18 @@ public class PdfBoxServiceImpl implements PdfBoxService {
                     page.setRotation(Math.floorMod(current + angle, 360));
                 }
             }
-            doc.save(output.toFile());
-        } catch (InvalidPasswordException e) {
-            throw mapInvalidPassword(password);
-        } catch (IOException e) {
-            EncryptedPdfException enc = tryMapEncrypted(e, password);
-            if (enc != null) throw enc;
-            throw new CorruptPdfException("failed to rotate PDF: " + e.getMessage(), e);
-        }
+            try {
+                doc.save(output.toFile());
+            } catch (IOException e) {
+                throw new CorruptPdfException("failed to rotate PDF: " + e.getMessage(), e);
+            }
+            return null;
+        });
     }
 
     @Override
     public String extractText(Path input, String pagesSpec, String password) {
-        File file = input.toFile();
-        try (PDDocument doc = loadDocument(file, password)) {
+        return withDocument(input, password, "failed to extract text: ", doc -> {
             int pageCount = doc.getNumberOfPages();
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
@@ -246,13 +255,38 @@ public class PdfBoxServiceImpl implements PdfBoxService {
                 }
             }
             return sb.toString();
-        } catch (InvalidPasswordException e) {
-            throw mapInvalidPassword(password);
-        } catch (IOException e) {
-            EncryptedPdfException enc = tryMapEncrypted(e, password);
-            if (enc != null) throw enc;
-            throw new CorruptPdfException("failed to extract text: " + e.getMessage(), e);
-        }
+        });
+    }
+
+    @Override
+    public void extractTextToFile(Path input, String pagesSpec, String password, Path outputFile) {
+        withDocument(input, password, "failed to extract text: ", doc -> {
+            int pageCount = doc.getNumberOfPages();
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+            // Stream directly to output file to avoid holding entire text in memory
+            try (BufferedWriter writer = Files.newBufferedWriter(outputFile, StandardCharsets.UTF_8)) {
+                if (pagesSpec == null || pagesSpec.trim().isEmpty()) {
+                    String text = stripper.getText(doc);
+                    writer.write(text);
+                } else {
+                    List<Integer> zeroBasedPages = PageRangeParser.parse(pagesSpec, pageCount);
+                    for (int i = 0; i < zeroBasedPages.size(); i++) {
+                        int idx = zeroBasedPages.get(i);
+                        stripper.setStartPage(idx + 1);
+                        stripper.setEndPage(idx + 1);
+                        String t = stripper.getText(doc);
+                        writer.write(t);
+                        if (i < zeroBasedPages.size() - 1 && !t.endsWith("\n")) {
+                            writer.write("\n");
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                throw new CorruptPdfException("failed to write text: " + e.getMessage(), e);
+            }
+            return null;
+        });
     }
 
     private PDDocument loadDocument(File file, String password) throws IOException {
@@ -279,19 +313,7 @@ public class PdfBoxServiceImpl implements PdfBoxService {
             }
             cause = cause.getCause();
         }
-        String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-        if (msg.contains("password") || msg.contains("encrypted")) {
-            return mapInvalidPassword(password);
-        }
         return null;
-    }
-
-    private void validatePagesInRange(List<Integer> pages, int pageCount) {
-        for (int idx : pages) {
-            if (idx < 0 || idx >= pageCount) {
-                throw new BadInputException("page " + (idx + 1) + " out of range (1-" + pageCount + ")");
-            }
-        }
     }
 
     /**

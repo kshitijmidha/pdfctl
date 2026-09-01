@@ -21,4 +21,6 @@ public interface PdfBoxService {
     void rotate(Path input, Path output, String pagesSpec, int angle, String password);
 
     String extractText(Path input, String pagesSpec, String password);
+
+    void extractTextToFile(Path input, String pagesSpec, String password, Path outputFile);
 }

@@ -23,6 +23,7 @@ class InfoUseCaseTest {
             @Override public void delete(Path i, Path o, String s, String p) {}
             @Override public void rotate(Path i, Path o, String s, int a, String p) {}
             @Override public String extractText(Path i, String s, String p) { return null; }
+            @Override public void extractTextToFile(Path i, String s, String p, Path o) {}
         };
         InfoUseCase useCase = new InfoUseCase(dummy);
         Path missing = tmp.resolve("missing.pdf");
@@ -47,6 +48,7 @@ class InfoUseCaseTest {
             @Override public void delete(Path i, Path o, String s, String p) {}
             @Override public void rotate(Path i, Path o, String s, int a, String p) {}
             @Override public String extractText(Path i, String s, String p) { return null; }
+            @Override public void extractTextToFile(Path i, String s, String p, Path o) {}
         };
         InfoUseCase useCase = new InfoUseCase(stub);
         var result = useCase.execute(file, null);

@@ -10,37 +10,37 @@ public final class JsonRenderer {
         StringBuilder sb = new StringBuilder(256);
         sb.append('{');
         // deterministic ordering
-        appendString(sb, "fileName", info.fileName(), false);
+        appendString(sb, "fileName", info.fileName());
         sb.append(',');
-        appendLong(sb, "fileSize", info.fileSize(), false);
+        appendLong(sb, "fileSize", info.fileSize());
         sb.append(',');
-        appendString(sb, "pdfVersion", info.pdfVersion(), false);
+        appendString(sb, "pdfVersion", info.pdfVersion());
         sb.append(',');
-        appendInt(sb, "pageCount", info.pageCount(), false);
+        appendInt(sb, "pageCount", info.pageCount());
         sb.append(',');
-        appendBoolean(sb, "encrypted", info.encrypted(), false);
+        appendBoolean(sb, "encrypted", info.encrypted());
         sb.append(',');
-        appendNullableString(sb, "title", info.title(), false);
+        appendNullableString(sb, "title", info.title());
         sb.append(',');
-        appendNullableString(sb, "author", info.author(), false);
+        appendNullableString(sb, "author", info.author());
         sb.append(',');
-        appendNullableString(sb, "creator", info.creator(), false);
+        appendNullableString(sb, "creator", info.creator());
         sb.append(',');
-        appendNullableString(sb, "producer", info.producer(), false);
+        appendNullableString(sb, "producer", info.producer());
         sb.append(',');
-        appendNullableString(sb, "subject", info.subject(), false);
+        appendNullableString(sb, "subject", info.subject());
         sb.append(',');
-        appendNullableString(sb, "keywords", info.keywords(), true);
+        appendNullableString(sb, "keywords", info.keywords());
         sb.append('}');
         return sb.toString();
     }
 
-    private static void appendString(StringBuilder sb, String key, String value, boolean last) {
+    private static void appendString(StringBuilder sb, String key, String value) {
         sb.append('"').append(escape(key)).append('"').append(':');
         sb.append('"').append(escape(value != null ? value : "")).append('"');
     }
 
-    private static void appendNullableString(StringBuilder sb, String key, String value, boolean last) {
+    private static void appendNullableString(StringBuilder sb, String key, String value) {
         sb.append('"').append(escape(key)).append('"').append(':');
         if (value == null) {
             sb.append("null");
@@ -49,15 +49,15 @@ public final class JsonRenderer {
         }
     }
 
-    private static void appendLong(StringBuilder sb, String key, long value, boolean last) {
+    private static void appendLong(StringBuilder sb, String key, long value) {
         sb.append('"').append(escape(key)).append('"').append(':').append(value);
     }
 
-    private static void appendInt(StringBuilder sb, String key, int value, boolean last) {
+    private static void appendInt(StringBuilder sb, String key, int value) {
         sb.append('"').append(escape(key)).append('"').append(':').append(value);
     }
 
-    private static void appendBoolean(StringBuilder sb, String key, boolean value, boolean last) {
+    private static void appendBoolean(StringBuilder sb, String key, boolean value) {
         sb.append('"').append(escape(key)).append('"').append(':').append(value);
     }
 

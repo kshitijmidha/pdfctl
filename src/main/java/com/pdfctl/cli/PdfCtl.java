@@ -2,7 +2,6 @@ package com.pdfctl.cli;
 
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 
 @Command(
@@ -18,9 +17,6 @@ public class PdfCtl implements Runnable {
 
     @Spec
     CommandSpec spec;
-
-    @Option(names = "--force", description = "overwrite existing output files")
-    boolean force;
 
     @Override
     public void run() {

@@ -28,12 +28,14 @@ public class ExtractTextUseCase {
         if (output == null) throw new BadInputException("output must not be null");
         FileOperations.requireNotSameFile(input, output);
         FileOperations.validateOutput(output, force);
-        String text = pdfBoxService.extractText(input, pagesSpec, password);
         Path tmp = FileOperations.createTempFileInSameDir(output);
         try {
-            Files.writeString(tmp, text, StandardCharsets.UTF_8);
+            pdfBoxService.extractTextToFile(input, pagesSpec, password, tmp);
             FileOperations.moveTempToOutput(tmp, output);
-        } catch (IOException e) {
+        } catch (RuntimeException e) {
+            try { Files.deleteIfExists(tmp); } catch (IOException ignored) {}
+            throw e;
+        } catch (Exception e) {
             try { Files.deleteIfExists(tmp); } catch (IOException ignored) {}
             throw new IoException("failed to write text output: " + output, e);
         }
