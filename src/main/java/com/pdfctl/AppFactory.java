@@ -47,6 +47,12 @@ public final class AppFactory {
         cmd.addSubcommand("rotate", new RotateCommand(rotateUseCase));
         cmd.addSubcommand("extract-text", new ExtractTextCommand(extractUseCase));
 
+        cmd.setParameterExceptionHandler((ex, args) -> {
+            ex.getCommandLine().getErr().println(ex.getMessage());
+            ex.getCommandLine().usage(ex.getCommandLine().getErr());
+            return 1;
+        });
+
         cmd.setExecutionExceptionHandler((ex, commandLine, parseResult) -> {
             if (ex instanceof PdfCtlError e) {
                 commandLine.getErr().println("pdfctl: error: " + e.getMessage());

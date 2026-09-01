@@ -10,13 +10,13 @@ import picocli.CommandLine.Spec;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
-@Command(name = "split", description = "Split PDF into pages", mixinStandardHelpOptions = true)
+@Command(name = "split", description = "Split PDF into pages.%n%nWith --pages: extract selected pages into a single PDF file:%n  pdfctl split INPUT --pages 1,3 -o selected.pdf%n%nWithout --pages: explode into page-001.pdf etc. in a directory:%n  pdfctl split INPUT -o pages/", mixinStandardHelpOptions = true, footer = {"", "Examples:", "  pdfctl split document.pdf -o pages/", "  pdfctl split document.pdf --pages 2,4-6 -o selected.pdf"})
 public class SplitCommand implements Callable<Integer> {
 
     @Parameters(index = "0", paramLabel = "INPUT", description = "Input PDF file")
     Path input;
 
-    @Option(names = {"-o", "--output"}, required = true, description = "Output directory or file (for --pages)")
+    @Option(names = {"-o", "--output"}, required = true, description = "Output file (with --pages) or directory (without --pages)")
     Path output;
 
     @Option(names = "--pages", description = "Pages to extract (e.g. 1,3,5-7,10-)", paramLabel = "SPEC")

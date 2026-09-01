@@ -65,7 +65,11 @@ class MergeCommandTest {
         Capture c = new Capture();
         c.run("merge", a.toString(), "-o", out.toString());
         assertThat(c.exit).isEqualTo(1);
-        assertThat(c.errStr()).contains("at least 2");
+        // With arity="2..*" picocli validates before UseCase, so error is from picocli, not MergeUseCase
+        // It should mention the expected count and the INPUT parameter, and not create output
+        assertThat(c.errStr()).contains("INPUT");
+        assertThat(c.errStr()).contains("2");
+        assertThat(java.nio.file.Files.exists(out)).isFalse();
     }
 
     @Test

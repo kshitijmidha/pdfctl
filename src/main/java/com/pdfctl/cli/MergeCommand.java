@@ -14,7 +14,7 @@ import java.util.concurrent.Callable;
 @Command(name = "merge", description = "Merge multiple PDFs into one", mixinStandardHelpOptions = true)
 public class MergeCommand implements Callable<Integer> {
 
-    @Parameters(index = "0..*", paramLabel = "INPUT", description = "Input PDF files (at least 2)")
+    @Parameters(index = "0..*", arity = "2..*", paramLabel = "INPUT", description = "Input PDF files (at least 2)")
     List<Path> inputs;
 
     @Option(names = {"-o", "--output"}, required = true, description = "Output PDF file")
